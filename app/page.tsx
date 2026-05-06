@@ -3,63 +3,16 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { BookOpen, Code2, Cpu, Network, Shield, ArrowRight, Zap, Timer, Database, Globe, Server, Gauge, Layers, GitBranch, Terminal, Box, Workflow, Lock, Rocket, MessageSquare, FileText, Users, Mail } from 'lucide-react';
+import { BrandHero } from '@/components/brand-hero';
+import { ZAppsPillars } from '@/components/zapps-pillars';
+import { ProtocolFamily } from '@/components/protocol-family';
 
 export default function HomePage() {
   return (
     <main className="flex flex-col min-h-screen">
-      {/* Hero Section */}
-      <section className="relative flex flex-col items-center justify-center px-6 py-28 text-center bg-gradient-to-b from-fd-background to-fd-card">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
-        </div>
-
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <span className="text-6xl rotate-[-15deg] inline-block">⚡</span>
-            <h1 className="text-5xl font-bold tracking-tight md:text-7xl">
-              ZAP
-            </h1>
-          </div>
-
-          <p className="text-2xl text-blue-400 font-semibold md:text-3xl mb-6">
-            Infinitely faster.
-          </p>
-
-          <p className="text-xl text-fd-muted-foreground max-w-3xl mx-auto mb-4">
-            An insanely fast data interchange format and capability-based RPC system.
-          </p>
-
-          <p className="text-lg text-fd-muted-foreground max-w-2xl mx-auto mb-8">
-            Think JSON, except binary. Think Protocol Buffers, except faster.
-            In benchmarks, ZAP is <span className="text-blue-400 font-bold">INFINITY TIMES</span> faster.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/docs"
-              className="inline-flex items-center gap-2 px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-500 transition-colors"
-            >
-              Get Started
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
-              href="/docs/quick-start"
-              className="inline-flex items-center gap-2 px-6 py-3 text-lg font-medium border border-fd-border rounded-lg hover:bg-fd-accent transition-colors"
-            >
-              Installation
-            </Link>
-            <a
-              href="https://github.com/zap-protocol"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 text-lg font-medium border border-fd-border rounded-lg hover:bg-fd-accent transition-colors"
-            >
-              GitHub
-            </a>
-          </div>
-        </div>
-      </section>
+      <BrandHero />
+      <ZAppsPillars />
+      <ProtocolFamily />
 
       {/* The Story Section */}
       <section className="px-6 py-20 bg-fd-card border-y border-fd-border">
@@ -134,7 +87,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">Real Numbers. Real Impact.</h2>
           <p className="text-center text-fd-muted-foreground mb-12 max-w-2xl mx-auto">
-            Measured on Apple M1 Max. <a href="https://github.com/zap-protocol/benchmarks" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Run them yourself.</a>
+            Measured on Apple M1 Max. <a href="https://github.com/zap-proto/benchmarks" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Run them yourself.</a>
           </p>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -662,7 +615,7 @@ interface AddressBook {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <a
-              href="https://github.com/zap-protocol"
+              href="https://github.com/zap-proto"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium border border-fd-border rounded-lg hover:bg-fd-accent transition-colors"
@@ -698,7 +651,7 @@ interface AddressBook {
             <div>
               <h4 className="font-semibold mb-3">Community</h4>
               <ul className="space-y-2 text-sm text-fd-muted-foreground">
-                <li><a href="https://github.com/zap-protocol" target="_blank" rel="noopener noreferrer" className="hover:text-fd-foreground transition-colors">GitHub</a></li>
+                <li><a href="https://github.com/zap-proto" target="_blank" rel="noopener noreferrer" className="hover:text-fd-foreground transition-colors">GitHub</a></li>
                 <li><a href="https://twitter.com/AltZap" target="_blank" rel="noopener noreferrer" className="hover:text-fd-foreground transition-colors">Twitter</a></li>
                 <li><Link href="/docs/benchmarks" className="hover:text-fd-foreground transition-colors">Benchmarks</Link></li>
               </ul>
@@ -713,7 +666,7 @@ interface AddressBook {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-fd-border text-sm text-fd-muted-foreground">
             <span>© 2025 ZAP Protocol</span>
             <div className="flex items-center gap-6">
-              <a href="https://github.com/zap-protocol" target="_blank" rel="noopener noreferrer" className="hover:text-fd-foreground transition-colors">
+              <a href="https://github.com/zap-proto" target="_blank" rel="noopener noreferrer" className="hover:text-fd-foreground transition-colors">
                 GitHub
               </a>
               <a href="https://twitter.com/AltZap" target="_blank" rel="noopener noreferrer" className="hover:text-fd-foreground transition-colors">

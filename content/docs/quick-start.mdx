@@ -18,13 +18,13 @@ This guide will help you build your first ZAP service in under 5 minutes.
 <Tab value="Go">
 ```bash
 # Install the ZAP CLI
-go install github.com/zap-protocol/zap/cmd/zap@latest
+go install github.com/zap-proto/spec/cmd/zap@latest
 ```
 </Tab>
 <Tab value="Rust">
 ```bash
 # Add to Cargo.toml
-cargo add zap-protocol
+cargo add zap-proto
 
 # Install the code generator
 cargo install zap-codegen
@@ -33,10 +33,10 @@ cargo install zap-codegen
 <Tab value="TypeScript">
 ```bash
 # Install packages
-npm install @zap-protocol/client @zap-protocol/codegen
+npm install @zap-proto/zap @zap-proto/codegen
 
 # Or with pnpm
-pnpm add @zap-protocol/client @zap-protocol/codegen
+pnpm add @zap-proto/zap @zap-proto/codegen
 ```
 </Tab>
 </Tabs>
@@ -97,7 +97,7 @@ import (
     "errors"
     "log"
 
-    "github.com/zap-protocol/zap"
+    "github.com/zap-proto/go"
     "yourmodule/gen"
 )
 
@@ -192,7 +192,7 @@ async fn main() -> Result<()> {
 </Tab>
 <Tab value="TypeScript">
 ```typescript
-import { createServer } from '@zap-protocol/server';
+import { createServer } from '@zap-proto/zap';
 import { Calculator } from './gen/calculator';
 
 const calculator: Calculator = {
@@ -241,7 +241,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/zap-protocol/zap"
+    "github.com/zap-proto/go"
     "yourmodule/gen"
 )
 
@@ -301,7 +301,7 @@ async fn main() -> zap_protocol::Result<()> {
 </Tab>
 <Tab value="TypeScript">
 ```typescript
-import { createClient } from '@zap-protocol/client';
+import { createClient } from '@zap-proto/zap';
 import { CalculatorClient } from './gen/calculator';
 
 async function main() {
