@@ -1,7 +1,8 @@
 {
-  "name": "zap-protocol-docs",
+  "name": "@zap-proto/io-site",
   "version": "0.1.0",
   "private": true,
+  "description": "Brand landing for zap-proto.io — Next.js (deployed via GitHub Pages). Single-brand canonical site. Marketing lives at zerocopy.app; developer docs at zap-proto.dev.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,11 +10,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@hanzo/docs": "^16.4.0",
-    "@hanzo/docs-core": "^16.5.0",
-    "@hanzo/docs-mdx": "^14.3.0",
-    "@hanzo/docs-radix-ui": "^16.4.8",
-    "@hanzo/docs-ui": "^16.4.8",
+    "@hanzo/docs": "16.4.1",
+    "@hanzo/docs-core": "16.5.0",
+    "@hanzo/docs-mdx": "14.3.0",
+    "@hanzo/docs-radix-ui": "16.4.8",
+    "@hanzo/docs-ui": "16.4.8",
     "@hanzo/ui": "^5.3.34",
     "@tailwindcss/postcss": "^4.1.18",
     "lucide-react": "^0.468.0",
