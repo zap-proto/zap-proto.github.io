@@ -1,27 +1,26 @@
-# ZAP Protocol Documentation
+# zap-proto.io
 
-Official documentation site for ZAP - Zero-copy App Proto.
+Source for [zap-proto.io](https://zap-proto.io) — the ZAP Protocol marketing site.
 
-## Development
+## Develop
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Start development server
-pnpm dev
-
-# Build for production
+pnpm dev          # http://localhost:3000
 pnpm build
 ```
 
-## Documentation
+## Deploy
 
-Documentation files are in `content/docs/` as MDX files.
+`do-sfo3-lux-k8s`, namespace `zap-proto-io`, served through `hanzoai/spa` behind `hanzoai/ingress`. Cloudflare proxy ON for edge cache + TLS.
 
-## Deployment
+Image: `ghcr.io/zap-proto/zap-proto.github.io:latest`. Hosts on the same Ingress: `zap-proto.io`, `www.zap-proto.io`.
 
-This site is deployed to GitHub Pages automatically on push to `main` via GitHub Actions.
+## Related
+
+- [zap-proto.dev](https://zap-proto.dev) — developer portal + SDK docs
+- [zerocopy.app](https://zerocopy.app) — "why zero-copy" landing
+- [zap-proto/spec](https://github.com/zap-proto/spec) — wire-format spec
 
 ## License
 
