@@ -1,26 +1,26 @@
 ---
 title: Why ZAP?
-description: Understanding when and why to choose ZAP Protocol for your distributed systems
+description: What ZAP replaces, what it buys you, and the production stack that runs it with zero gRPC and zero protobuf.
 ---
 
 # Why ZAP?
 
-ZAP Protocol was designed to solve real problems in building high-performance distributed systems. This page explains the motivation behind ZAP and how it compares to alternatives.
+ZAP replaces **both halves** of the conventional RPC stack — protobuf (serialization) and gRPC (transport + RPC) — with one layer. This page explains the mechanism, compares the alternatives honestly, and shows what a stack looks like when the replacement is complete: a real production deployment with zero gRPC and protobuf confined to one four-function file.
 
-## The Problem
+## The problem
 
-Modern distributed systems face several challenges:
+Modern distributed systems inherit four costs from their RPC framework:
 
-1. **Serialization Overhead**: JSON and Protobuf require parsing, adding latency
-2. **Transport Limitations**: Most frameworks lock you into a single transport
-3. **Consensus Complexity**: Adding BFT consensus is typically a separate integration
-4. **Code Generation Friction**: Poor tooling leads to manual boilerplate
+1. **Serialization overhead** — JSON and protobuf require an encode/decode step on every hop
+2. **Transport lock-in** — most frameworks are welded to a single transport (gRPC to HTTP/2)
+3. **Bolted-on trust** — auth is per-layer (TLS *and* tokens *and* API keys), consensus is a separate integration
+4. **Two artifacts per contract** — a schema *and* a framework config, each drifting independently
 
-## How ZAP Solves These
+## How ZAP solves these
 
-### Zero-Copy Serialization
+### Zero-copy serialization
 
-Cap'n Proto's wire format is directly usable in memory. There's no parsing step - data is accessed in-place from the buffer.
+ZAP's wire format is directly usable in memory. There is no parsing step — data is accessed in place from the buffer.
 
 ```
 Traditional RPC:
@@ -30,17 +30,11 @@ ZAP:
   Wire -> Use (directly)
 ```
 
-Benchmark comparison (10,000 messages):
+Measured numbers live on the [benchmarks page](https://zap-proto.dev/docs/benchmarks) — every table there is reproducible from [zap-proto/bench](https://github.com/zap-proto/bench), and claims that can't be traced to a checked-in harness don't get published. The mechanism argument stands on its own: object-mode access has no decode step to pay for, which is why it leads every mode in the harness.
 
-| Format | Encode | Decode | Total |
-|--------|--------|--------|-------|
-| JSON | 45ms | 62ms | 107ms |
-| Protobuf | 12ms | 18ms | 30ms |
-| Cap'n Proto | 8ms | 0ms | 8ms |
+### Transport flexibility
 
-### Transport Flexibility
-
-ZAP abstracts the transport layer, letting you choose based on your needs:
+ZAP abstracts the transport layer:
 
 | Transport | Latency | Reliability | Use Case |
 |-----------|---------|-------------|----------|
@@ -62,119 +56,74 @@ client, _ := zap.Dial("unix:///var/run/zap.sock")
 client, _ := zap.Dial("ws://localhost:9000/rpc")
 ```
 
-### Integrated Consensus
+On the server side, [zip](https://zap-proto.dev/docs/zip) takes the same idea further: one `Listen` verb, address scheme selects the transport, ZAP primary and HTTP secondary over the same routes.
 
-ZAP includes optional Byzantine fault-tolerant consensus. Enable it with a single configuration change:
+### One trust model
 
-```go
-server := zap.NewServer(
-    zap.WithConsensus(zap.BFT{
-        Nodes: []string{"node1:9000", "node2:9000", "node3:9000"},
-        Threshold: 2,
-    }),
-)
-```
+Authentication is bound to the transport — mutual [post-quantum KEM](https://zap-proto.dev/docs/post-quantum) identity, not TLS-plus-tokens — and authority is expressed as [**capabilities**](https://zap-proto.dev/docs/capabilities): references the holder can call but cannot forge, transferable to a third peer, revocable without rotating keys. [The capability mailbox example](https://zap-proto.dev/docs/examples/capability-mailbox) shows what this makes possible that bearer tokens structurally cannot express. Optional [BFT consensus](/docs/consensus) rides the same wire.
 
-No separate Raft/Paxos integration required.
+### First-class code generation
 
-### First-Class Code Generation
-
-ZAP's code generator produces idiomatic, type-safe code:
+One `.zap` schema is the entire contract — structs, RPC surface, stable opcodes:
 
 ```bash
-zap generate service.capnp --lang=go
+zap generate calculator.zap --lang=go --out=./gen
 ```
 
-Generated code includes:
-- Type-safe client stubs
-- Server interface definitions
-- Streaming helpers
-- Error types
+Generation emits a zero-copy View/Builder per struct plus a typed client and server per interface — the [Schema Language](https://zap-proto.dev/docs/schema) and [Code Generation](https://zap-proto.dev/docs/codegen) pages are the references. The [tools section](https://zap-proto.dev/docs/tools) covers the migration path off protobuf.
 
-## Comparison with Alternatives
+## ZAP instead of gRPC + protobuf
 
-### vs gRPC
+gRPC and protobuf are two products you adopt together and pay for separately. ZAP is one layer:
 
-| Feature | ZAP | gRPC |
-|---------|-----|------|
-| Serialization | Cap'n Proto (zero-copy) | Protobuf (parsing required) |
-| Transports | TCP, UDP, Unix, WebSocket | HTTP/2 only |
-| Consensus | Built-in BFT | Not included |
-| Browser support | Native WebSocket | Requires proxy |
-| Streaming | Bidirectional | Bidirectional |
+| Concern | gRPC + protobuf | ZAP |
+|---------|-----------------|-----|
+| Serialization | protobuf — encode/decode every hop | zero-copy — the in-memory layout *is* the wire layout |
+| Transport | HTTP/2 only | TCP, UDP, Unix, WebSocket; [pluggable](https://zap-proto.dev/docs/zip#transport-is-a-value-not-a-method) |
+| Schema | `.proto` + ordinals + separate service config | one `.zap` file — structs + interface + opcodes |
+| Auth | TLS at the edge, tokens in-band | identity-bound transport, PQ KEM, capabilities |
+| Browser | requires grpc-web proxy | native WebSocket |
+| Streaming | bidirectional | bidirectional + promise pipelining |
+| Consensus | separate integration | built-in, optional |
 
-**Choose ZAP when**: You need maximum performance, transport flexibility, or built-in consensus.
+**Choose gRPC when**: you need its ecosystem — existing proto contracts with external partners, off-the-shelf interceptor middleware, teams fluent in it.
 
-**Choose gRPC when**: You need broad ecosystem support or HTTP/2 features.
+**Choose ZAP when**: you control both ends of the wire and want one wire format, one trust model, and no serializer between layers.
 
-### vs Cap'n Proto RPC
+## ZAP-only in production
 
-| Feature | ZAP | Cap'n Proto RPC |
-|---------|-----|-----------------|
-| Multiple transports | Yes | No (TCP only) |
-| HTTP Gateway | Built-in | Not available |
-| Consensus | Built-in BFT | Not included |
-| Observability | Metrics, tracing | Basic |
+This is not a roadmap claim. The Hanzo AI + Lux Network stack runs ZAP-native today, with **zero gRPC and zero protobuf in application code**:
 
-ZAP builds on Cap'n Proto's serialization but adds the infrastructure for production systems.
+- **One binary.** [hanzoai/cloud](https://github.com/hanzoai/cloud) composes IAM, KMS, gateway, commerce, AI, and a dozen more subsystems into a single Go binary. The compose root is under 1,000 lines of [zip](https://zap-proto.dev/docs/zip) hosting ~75,000 lines of subsystem code — a 76:1 ratio of product over framework shim.
+- **One wire contract per service.** Every RPC surface is a `.zap` schema — structs plus stable opcodes. [hanzoai/tasks](https://github.com/hanzoai/tasks) (`schema/tasks.zap`) states it the way every service does: *"This is the one and only wire contract. Nothing on this wire speaks protobuf, gRPC, or any temporal.io-branded framing."*
+- **One protobuf touchpoint.** Observability is the industry edge that still speaks protobuf (OTLP/OpAMP). The stack's entire protobuf surface is [zap2pb](https://zap-proto.dev/docs/tools/zap2pb) — one file, four functions. Spans are OTLP-protobuf payloads shipped over ZAP frames to the collector's ZAP receiver; no OTLP-over-gRPC, no second protobuf import anywhere.
+- **Mechanical migration.** [pb2zap](https://zap-proto.dev/docs/tools/pb2zap) rewrote the unambiguous protobuf construction sites; humans restructured the read paths it reported.
 
-### vs JSON-RPC
+The same dispatch generalizes upward: Hanzo and Lux run services as ZAP-native plugin VMs — ZAP is the dispatch surface, Lux consensus orders it, zapdb persists it. Deployments and their numbers are tracked on the [ecosystem page](https://zap-proto.dev/docs/ecosystem).
 
-| Feature | ZAP | JSON-RPC |
-|---------|-----|----------|
-| Type safety | Schema-based | Runtime only |
-| Performance | High | Low |
-| Streaming | Full support | Limited |
-| Code generation | Automatic | Manual |
+## When to use ZAP
 
-**Choose ZAP when**: You need performance and type safety.
+- **High-throughput services**: financial systems, game backends, real-time analytics
+- **Low-latency requirements**: trading systems, live collaboration, IoT
+- **Distributed consensus**: blockchain nodes, distributed databases, leader election
+- **Polyglot environments**: services in Go, Rust, and TypeScript communicating seamlessly
+- **Agent infrastructure**: [MCP](https://zap-proto.dev/docs/protocols/mcp) and [A2A](https://zap-proto.dev/docs/protocols/a2a) ride the ZAP wire natively
 
-**Choose JSON-RPC when**: You need maximum simplicity and human-readable messages.
+## When not to use ZAP
 
-## When to Use ZAP
+- **Simple public REST APIs**: standard HTTP may be all you need
+- **Contracts you don't own**: if external partners mandate proto/gRPC contracts, you keep them — though [zap2pb](https://zap-proto.dev/docs/tools/zap2pb) shows how narrow that edge can be
+- **Browser-only products**: if browsers are your only client, GraphQL or plain HTTP may fit better
 
-ZAP is ideal for:
+## Performance
 
-- **High-throughput services**: Financial systems, game backends, real-time analytics
-- **Low-latency requirements**: Trading systems, live collaboration, IoT
-- **Distributed consensus**: Blockchain nodes, distributed databases, leader election
-- **Polyglot environments**: Services in Go, Rust, and TypeScript communicating seamlessly
-
-## When Not to Use ZAP
-
-Consider alternatives when:
-
-- **Simple REST APIs**: Standard HTTP APIs may be simpler
-- **Browser-only clients**: If you only need browser clients, consider GraphQL
-- **Existing Protobuf schemas**: Migration cost may outweigh benefits
-
-## Performance Benchmarks
-
-Tested on AWS c5.xlarge (4 vCPU, 8GB RAM):
-
-### Throughput (requests/second)
-
-| Framework | 1 KB payload | 10 KB payload | 100 KB payload |
-|-----------|--------------|---------------|----------------|
-| ZAP | 180,000 | 95,000 | 12,000 |
-| gRPC | 120,000 | 65,000 | 8,500 |
-| HTTP/JSON | 45,000 | 22,000 | 3,200 |
-
-### Latency (p99, microseconds)
-
-| Framework | 1 KB payload | 10 KB payload | 100 KB payload |
-|-----------|--------------|---------------|----------------|
-| ZAP | 85 | 180 | 1,200 |
-| gRPC | 150 | 320 | 2,100 |
-| HTTP/JSON | 450 | 890 | 5,600 |
+Every published number is on the [benchmarks page](https://zap-proto.dev/docs/benchmarks), reproducible from the harness in [zap-proto/bench](https://github.com/zap-proto/bench). The honest summary: ZAP wins modestly at small payloads, ties in the middle, and the strongest arguments today are mechanism, not microseconds — one wire format under every protocol, PQ at the transport, capabilities instead of tokens.
 
 ## Summary
 
-ZAP Protocol provides:
+1. **One layer** replaces protobuf + gRPC — zero-copy wire, typed RPC, transport choice
+2. **One trust model** — identity-bound transport, capabilities, optional BFT
+3. **One schema** per service — `.zap`, with a [complete toolchain](https://zap-proto.dev/docs/tools) on and off it
+4. **Proven in production** — a real stack runs ZAP-only, with protobuf confined to four functions
 
-1. **Maximum performance** through zero-copy serialization
-2. **Transport flexibility** for any deployment scenario
-3. **Built-in consensus** for distributed systems
-4. **Excellent developer experience** with code generation
-
-If you're building high-performance distributed systems and need more than what traditional RPC frameworks offer, ZAP is worth evaluating.
+If you control both ends of your wire, ZAP removes an entire layer of your stack. The [quick start](/docs/quick-start) takes five minutes.
