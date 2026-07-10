@@ -1,0 +1,47 @@
+---
+title: zip
+description: The ZAP-native web framework for Go — ZAP primary, HTTP extra, OpenAPI and MCP from one set of routes.
+---
+
+# zip
+
+[`zap-proto/zip`](https://github.com/zap-proto/zip) is the web framework of the ZAP stack: a Go framework with a [Fiber v3](/docs/fiber) / fasthttp core and a Sinatra-style API, where **ZAP is the primary transport** and HTTP is a secondary view of the same routes.
+
+```go
+package main
+
+import (
+    "github.com/zap-proto/zip"
+    "github.com/zap-proto/zip/middleware"
+)
+
+func main() {
+    app := zip.New(zip.Config{})
+    app.Use(middleware.Recover(), middleware.RequestID())
+
+    app.Get("/health", func(c *zip.Ctx) error {
+        return c.JSON(200, map[string]string{"status": "ok"})
+    })
+
+    _ = app.Listen(":9653", "http://:8080") // ZAP primary + HTTP extra, one verb
+}
+```
+
+## What it gives you
+
+- **One `Listen` verb, transport as a value.** `app.Listen(addrs...)` — the address scheme selects the transport. A bare address is ZAP (TLS 1.3 + post-quantum KEM); `http://` is the HTTP bridge; `zip.RegisterTransport` adds any future protocol. Your routes are the surface over every transport.
+- **One registry, three projections.** A typed route `zip.Get[In, Out](app, path, fn)` becomes a REST handler, an OpenAPI 3.1 operation (Swagger UI at `/docs`), and a [Model Context Protocol](/docs/protocols/mcp) tool at `/mcp` — from one definition. Because `/mcp` is an ordinary route, ZAP-native MCP is automatic.
+- **Precedence is a property of the pattern.** Routing comes from the [fiber](/docs/fiber) fork: the most specific pattern wins regardless of registration order, and ambiguous overlaps panic at startup instead of silently shadowing.
+- **Composition by Mount.** A service is a set of subsystem packages exposing `Mount(app, deps)`; a standalone binary and a fused multi-subsystem binary are the same code with a different selection. Drop-in adapters (`AdaptNetHTTP`, `app.Mount`) bring chi / gin / beego / `net/http` handlers in unchanged.
+
+## Learn more
+
+The full guide — Ctx reference, the route-precedence contract, middleware, extension-runtime mounts, and versioning — lives on the developer portal:
+
+**[zap-proto.dev/docs/zip →](https://zap-proto.dev/docs/zip)**
+
+```bash
+go get github.com/zap-proto/zip
+```
+
+Module path `github.com/zap-proto/zip`, semver tags, Go 1.26+, MIT.

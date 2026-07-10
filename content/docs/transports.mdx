@@ -1,349 +1,44 @@
 ---
 title: Transports
-description: Network transport layers available in ZAP Protocol
+description: ZAP is the native wire between services; HTTP and WebSocket appear only at the edge.
 ---
 
 # Transports
 
-ZAP Protocol supports multiple transport layers, each optimized for different use cases. The transport abstraction allows switching between them without changing application code.
+ZAP is the wire, not a library bolted onto TCP. The transport layer answers one question — *how do two peers exchange ZAP frames* — the same way for native RPC, an HTTP bridge, and a full [zip](/docs/zip) application, because they all sit on the same wire.
 
-## Transport Overview
+## The law: ZAP inside, HTTP/WS only at the edge
 
-| Transport | Protocol | Reliable | Ordered | Latency | Use Case |
-|-----------|----------|----------|---------|---------|----------|
-| TCP | TCP | Yes | Yes | Low | Default, general purpose |
-| UDP | UDP | No | No | Lowest | Telemetry, real-time |
-| Unix | Unix Socket | Yes | Yes | Lowest | Same-host IPC |
-| WebSocket | WS/WSS | Yes | Yes | Medium | Browser clients |
+> **Internal service ↔ service traffic is ZAP. HTTPS and WebSocket appear only at the edge — the single point where the system talks to something it does not control.**
 
-## TCP Transport
-
-TCP is the default transport, providing reliable, ordered delivery.
-
-### Configuration
-
-```go
-// Server
-server := zap.NewServer(
-    zap.WithTransport(zap.TCP),
-    zap.WithAddress(":9000"),
-    zap.WithTCPKeepAlive(30*time.Second),
-    zap.WithTCPNoDelay(true),
-)
-
-// Client
-client, err := zap.Dial("tcp://localhost:9000",
-    zap.WithTCPKeepAlive(30*time.Second),
-    zap.WithConnectTimeout(5*time.Second),
-)
-```
-
-### Connection Pooling
-
-TCP connections are automatically pooled:
-
-```go
-client, err := zap.Dial("tcp://localhost:9000",
-    zap.WithPoolSize(20),              // Max connections
-    zap.WithPoolIdleTimeout(60*time.Second),
-    zap.WithPoolHealthCheck(true),
-)
-```
-
-### TLS Configuration
-
-Enable TLS for secure connections:
-
-```go
-// Server with TLS
-server := zap.NewServer(
-    zap.WithTLS(zap.TLSConfig{
-        CertFile: "/path/to/cert.pem",
-        KeyFile:  "/path/to/key.pem",
-        ClientCA: "/path/to/ca.pem",  // Optional: mTLS
-    }),
-)
-
-// Client with TLS
-client, err := zap.Dial("tls://localhost:9000",
-    zap.WithTLSConfig(&tls.Config{
-        RootCAs: certPool,
-    }),
-)
-```
-
-## UDP Transport
-
-UDP provides lowest latency for fire-and-forget messages.
-
-### When to Use UDP
-
-- Real-time telemetry where occasional loss is acceptable
-- High-frequency metrics collection
-- Game state updates
-- Sensor data streams
-
-### Configuration
-
-```go
-// Server
-server := zap.NewServer(
-    zap.WithTransport(zap.UDP),
-    zap.WithAddress(":9000"),
-    zap.WithUDPBufferSize(65535),
-)
-
-// Client
-client, err := zap.Dial("udp://localhost:9000",
-    zap.WithUDPBufferSize(65535),
-)
-```
-
-### Reliability Options
-
-For UDP with optional reliability:
-
-```go
-client, err := zap.Dial("udp://localhost:9000",
-    zap.WithUDPReliable(zap.UDPReliableConfig{
-        RetryCount:    3,
-        RetryInterval: 100*time.Millisecond,
-        AckTimeout:    500*time.Millisecond,
-    }),
-)
-```
-
-### Message Size Limits
-
-UDP messages are limited by MTU (typically 1500 bytes minus headers). ZAP handles fragmentation:
-
-```go
-server := zap.NewServer(
-    zap.WithTransport(zap.UDP),
-    zap.WithUDPFragmentation(true),   // Enable for large messages
-    zap.WithUDPMaxMessageSize(65535),
-)
-```
-
-## Unix Socket Transport
-
-Unix sockets provide the lowest latency for same-host communication.
-
-### When to Use Unix Sockets
-
-- Microservices on the same host
-- Sidecar patterns (service mesh)
-- Container-to-container communication
-- Security-sensitive IPC (filesystem permissions)
-
-### Configuration
-
-```go
-// Server
-server := zap.NewServer(
-    zap.WithTransport(zap.Unix),
-    zap.WithAddress("/var/run/zap.sock"),
-    zap.WithUnixPermissions(0660),
-)
-
-// Client
-client, err := zap.Dial("unix:///var/run/zap.sock")
-```
-
-### Abstract Sockets (Linux)
-
-Use abstract sockets to avoid filesystem:
-
-```go
-// Abstract socket (Linux only)
-server := zap.NewServer(
-    zap.WithAddress("@zap-service"),  // @ prefix = abstract
-)
-```
-
-### Cleanup
-
-Unix sockets persist on disk. Handle cleanup:
-
-```go
-server := zap.NewServer(
-    zap.WithAddress("/var/run/zap.sock"),
-    zap.WithUnixCleanup(true),  // Remove on shutdown
-)
-
-// Or manual cleanup
-defer os.Remove("/var/run/zap.sock")
-```
-
-## WebSocket Transport
-
-WebSocket enables browser clients to use ZAP services.
-
-### When to Use WebSocket
-
-- Browser-based applications
-- Real-time web dashboards
-- Mobile web apps
-- Cross-origin requirements
-
-### Server Configuration
-
-```go
-server := zap.NewServer(
-    zap.WithTransport(zap.WebSocket),
-    zap.WithAddress(":9000"),
-    zap.WithWebSocketPath("/rpc"),
-    zap.WithWebSocketOrigins([]string{
-        "https://app.example.com",
-        "https://dashboard.example.com",
-    }),
-)
-```
-
-### Client Configuration (Browser)
-
-```typescript
-import { createClient } from '@zap-proto/zap';
-
-const client = await createClient('ws://localhost:9000/rpc', {
-  reconnect: true,
-  reconnectInterval: 1000,
-  reconnectMaxAttempts: 10,
-});
-```
-
-### Client Configuration (Go)
-
-```go
-client, err := zap.Dial("ws://localhost:9000/rpc",
-    zap.WithWebSocketHeaders(http.Header{
-        "Authorization": []string{"Bearer token"},
-    }),
-)
-```
-
-### Secure WebSocket (WSS)
-
-```go
-// Server
-server := zap.NewServer(
-    zap.WithTransport(zap.WebSocket),
-    zap.WithTLS(zap.TLSConfig{
-        CertFile: "/path/to/cert.pem",
-        KeyFile:  "/path/to/key.pem",
-    }),
-)
-
-// Client
-client, err := zap.Dial("wss://example.com/rpc")
-```
-
-## Multi-Transport Server
-
-Run a single server on multiple transports:
-
-```go
-server := zap.NewServer()
-
-// Register your services
-server.Register(&myService{})
-
-// Listen on multiple transports
-go server.ListenTCP(":9000")
-go server.ListenUnix("/var/run/zap.sock")
-go server.ListenWebSocket(":9001", "/rpc")
-
-// Wait for shutdown
-<-ctx.Done()
-server.Shutdown()
-```
-
-## Transport Selection
-
-### Decision Matrix
-
-| Requirement | Recommended Transport |
-|-------------|----------------------|
-| General purpose | TCP |
-| Maximum performance (same host) | Unix |
-| Browser clients | WebSocket |
-| Fire-and-forget telemetry | UDP |
-| Secure external connections | TCP + TLS |
-
-### Automatic Failover
-
-Configure fallback transports:
-
-```go
-client, err := zap.Dial("tcp://localhost:9000",
-    zap.WithFallback([]string{
-        "unix:///var/run/zap.sock",
-        "ws://localhost:9001/rpc",
-    }),
-    zap.WithFallbackTimeout(5*time.Second),
-)
-```
-
-## Performance Tuning
-
-### Buffer Sizes
-
-```go
-server := zap.NewServer(
-    zap.WithReadBufferSize(32*1024),   // 32KB read buffer
-    zap.WithWriteBufferSize(32*1024),  // 32KB write buffer
-)
-```
-
-### Concurrency
-
-```go
-server := zap.NewServer(
-    zap.WithMaxConnections(10000),
-    zap.WithMaxConcurrentStreams(100),
-)
-```
-
-### Timeouts
-
-```go
-client, err := zap.Dial("tcp://localhost:9000",
-    zap.WithConnectTimeout(5*time.Second),
-    zap.WithReadTimeout(30*time.Second),
-    zap.WithWriteTimeout(30*time.Second),
-    zap.WithIdleTimeout(60*time.Second),
-)
-```
-
-## Monitoring
-
-### Metrics
-
-All transports expose Prometheus metrics:
+Inside a cluster or a mesh, both peers are trusted and speak ZAP: zero-copy framing, capability-based authority, and a post-quantum handshake at the transport layer instead of a per-call bearer token. At the edge — a browser, a partner API — you terminate ZAP and translate to the classical protocol the outside world expects.
 
 ```
-# Connection metrics
-zap_transport_connections_active{transport="tcp"}
-zap_transport_connections_total{transport="tcp"}
-
-# Throughput
-zap_transport_bytes_sent_total{transport="tcp"}
-zap_transport_bytes_received_total{transport="tcp"}
-
-# Latency
-zap_transport_latency_seconds{transport="tcp",quantile="0.99"}
+Outside world ──HTTPS / WSS──▶ [ edge: the only translator ] ──ZAP──▶ services ──ZAP──▶ services
 ```
 
-### Health Checks
+## Three ways onto the wire
 
-```go
-server := zap.NewServer(
-    zap.WithHealthCheck("/health"),
-)
+| Surface | Package | Use it when |
+|---|---|---|
+| **Native ZAP RPC** | [`zap-proto/go`](https://github.com/zap-proto/go) | Greenfield service ↔ service — define `.zap` interfaces, generate code, use ZAP's capability model. |
+| **HTTP over ZAP** | [`zap-proto/http`](https://github.com/zap-proto/http) | You have `net/http` handlers or `http.Client` code and want the ZAP wire underneath, unchanged (X-Wing hybrid PQ handshake). |
+| **zip** | [`zap-proto/zip`](https://github.com/zap-proto/zip) | A full web framework — Sinatra-style routes, typed handlers, OpenAPI + MCP — ZAP primary and HTTP extra from one `Listen`. |
+
+Under ZAP the network is a value — TCP, Unix socket, TLS, and QUIC — reached through `transport.Listen(network, addr, dispatch)` and `transport.Dial(network, addr)` in the Go runtime, or the client and server that [codegen](https://zap-proto.dev/docs/codegen) emits from your schema.
+
+## In the browser and at the edge
+
+Browser → server is **TLS 1.3** (recent Chrome and Safari ship the `X25519MLKEM768` KEM), running over `wss://`. The X-Wing handshake terminates at the server, so end-to-end PQ ZAP from a browser needs a server-side terminator:
+
+```
+Browser ──(wss:// + TLS 1.3 hybrid KEM)──▶ Edge Worker ──(ZAP over X-Wing)──▶ Origin
 ```
 
-## Next Steps
+The Edge Worker (any V8 isolate runtime) is that terminator — the browser sees `fetch`, the Worker holds the persistent ZAP connection upstream.
 
-- [Gateway](/docs/gateway) - HTTP gateway for REST clients
-- [Consensus](/docs/consensus) - Distributed consensus layer
-- [API Reference](/docs/api) - Complete API documentation
+## Learn more
+
+The full transport reference lives on the developer portal:
+
+**[zap-proto.dev/docs/transports →](https://zap-proto.dev/docs/transports)**

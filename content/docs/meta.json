@@ -8,6 +8,8 @@
     "architecture",
     "protocol",
     "transports",
+    "zip",
+    "fiber",
     "gateway",
     "consensus",
     "---Reference---",
