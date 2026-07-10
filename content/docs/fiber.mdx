@@ -1,0 +1,38 @@
+---
+title: fiber
+description: A fork of gofiber/fiber v3 that makes route precedence a property of the pattern, not of registration order.
+---
+
+# fiber
+
+[`zap-proto/fiber`](https://github.com/zap-proto/fiber) is a fork of [gofiber/fiber](https://github.com/gofiber/fiber) v3 that changes exactly one thing: **route precedence follows the pattern, not registration order.** It is a drop-in replacement for gofiber v3.2.0, and [zip](/docs/zip) is its intended consumer.
+
+## The problem it fixes
+
+Upstream Fiber matches routes in registration order, so a wildcard registered before a static route silently shadows it:
+
+```go
+app.Get("/v1/iam/*",    listAll)   // registered first — matches everything
+app.Get("/v1/iam/keys", getKeys)   // registered second — never reached
+```
+
+The fork maintains the per-method stack in most-specific-first order via sorted insertion, mirroring Go 1.22 `net/http.ServeMux`:
+
+- static literal ≻ `:param` ≻ `*` wildcard; more static structure wins; the longer literal breaks a static tie.
+- Two distinct patterns of equal specificity **panic at registration**, naming both, instead of one shadowing the other.
+- Constraint-typed params (`:id<int>` vs `:slug`) match disjoint sets and are exempt; the same pattern re-registered merges handlers; different methods are independent.
+- Middleware keeps declaration order — `Use` and mounts are precedence barriers, so endpoints sort only within the run between them.
+
+No changes to the matcher or the tree builder — same public API, same `fiber.Ctx` and middleware.
+
+## Learn more
+
+Full rationale, the comparator, and the compatibility notes are on the developer portal:
+
+**[zap-proto.dev/docs/fiber →](https://zap-proto.dev/docs/fiber)**
+
+```bash
+go get github.com/zap-proto/fiber/v3
+```
+
+MIT — upstream gofiber license carried forward (© 2019-present Fenny and Contributors).
